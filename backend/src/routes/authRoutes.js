@@ -5,6 +5,6 @@ const { protect } = require('../middleware/authMiddleware');
 
 router.post('/register-tenant', authController.registerTenant);
 router.post('/login', authController.login);
-router.get('/me', protect, authController.getMe); // This fixes the Dashboard display
+router.get('/me', protect, authController.getMe); // New Protected Route
 
 module.exports = router;
