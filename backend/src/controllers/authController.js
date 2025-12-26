@@ -2,73 +2,90 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// --- TENANT REGISTRATION (Requirement 1) ---
+// --- REGISTER TENANT ---
 exports.registerTenant = async (req, res) => {
-    const { tenantName, subdomain, adminEmail, adminPassword, adminFullName } = req.body;
-    
     try {
-        const client = await pool.connect();
-        await client.query('BEGIN');
+        // 1. Log the incoming data to debug the "null name" error
+        console.log("--- New Registration Attempt ---");
+        console.log("Request Body Received:", req.body);
 
-        // 1. Create Tenant
-        const tenantRes = await client.query(
-            'INSERT INTO tenants (name, subdomain) VALUES ($1, $2) RETURNING id',
-            [tenantName, subdomain]
-        );
-        const tenantId = tenantRes.rows[0].id;
+        const { name, email, password, subdomain } = req.body;
 
-        // 2. Hash Password and Create Admin User
-        const hashedPw = await bcrypt.hash(adminPassword, 10);
-        await client.query(
-            'INSERT INTO users (tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5)',
-            [tenantId, adminEmail, hashedPw, adminFullName, 'tenant_admin']
-        );
+        // 2. Validation Check
+        if (!name || !email || !password || !subdomain) {
+            console.log("❌ Validation Failed: Missing fields");
+            return res.status(400).json({
+                success: false,
+                message: "Missing fields. Please ensure name, email, password, and subdomain are provided."
+            });
+        }
 
-        await client.query('COMMIT');
-        client.release();
+        // 3. Hash the password for security
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-        res.status(201).json({ success: true, message: "Tenant registered successfully" });
+        // 4. Insert into the Cloud Database
+        // Note: We use the variables in order: $1=name, $2=email, $3=password, $4=subdomain
+        const query = `
+            INSERT INTO tenants (name, email, password, subdomain)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, name, email, subdomain, created_at
+        `;
+        const values = [name, email, hashedPassword, subdomain];
+
+        const result = await pool.query(query, values);
+
+        console.log("✅ Tenant Registered Successfully:", result.rows[0].subdomain);
+
+        res.status(201).json({
+            success: true,
+            message: "Tenant registered successfully!",
+            tenant: result.rows[0]
+        });
+
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        console.error("❌ Database Error:", err.message);
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
     }
 };
 
-// --- USER LOGIN (Requirement 2) ---
+// --- LOGIN ---
 exports.login = async (req, res) => {
-    const { email, password, subdomain } = req.body;
-
     try {
-        // 1. Find the tenant by subdomain
-        const tenantRes = await pool.query('SELECT id FROM tenants WHERE subdomain = $1', [subdomain]);
-        if (tenantRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: "Tenant not found" });
-        }
-        const tenantId = tenantRes.rows[0].id;
+        const { email, password } = req.body;
 
-        // 2. Find the user in that tenant
-        const userRes = await pool.query('SELECT * FROM users WHERE email = $1 AND tenant_id = $2', [email, tenantId]);
-        if (userRes.rows.length === 0) {
-            return res.status(401).json({ success: false, message: "Invalid email or password" });
-        }
-        const user = userRes.rows[0];
+        const query = "SELECT * FROM tenants WHERE email = $1";
+        const result = await pool.query(query, [email]);
 
-        // 3. Compare password
-        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const user = result.rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+
         if (!isMatch) {
-            return res.status(401).json({ success: false, message: "Invalid email or password" });
+            return res.status(400).json({ success: false, message: "Invalid credentials" });
         }
 
-        // 4. Generate JWT Token
+        // Create JWT Token
         const token = jwt.sign(
-            { id: user.id, tenant_id: tenantId, role: user.role },
-            process.env.JWT_SECRET || 'test_secret_123',
-            { expiresIn: '24h' }
+            { id: user.id, subdomain: user.subdomain },
+            process.env.JWT_SECRET || 'secret_key',
+            { expiresIn: '1d' }
         );
 
-        res.json({
+        res.status(200).json({
             success: true,
-            token: token,
-            user: { id: user.id, name: user.full_name, role: user.role }
+            token,
+            tenant: {
+                id: user.id,
+                name: user.name,
+                subdomain: user.subdomain
+            }
         });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
