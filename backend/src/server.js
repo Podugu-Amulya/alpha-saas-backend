@@ -19,7 +19,7 @@ app.use(express.json()); // Allows the server to read JSON data from requests
 
 // 5. Static Folders (For File Uploads)
 // This line makes your "uploads" folder accessible via URL
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 6. Define API Routes
 app.use('/api/auth', authRoutes);
