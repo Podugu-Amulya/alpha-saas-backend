@@ -1,23 +1,14 @@
 const jwt = require('jsonwebtoken');
 
-module.exports = (req, res, next) => {
-    // 1. Get the token from the request header
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
-    // 2. If no token, block them!
-    if (!token) {
-        return res.status(401).json({ success: false, message: "No token, authorization denied" });
-    }
+exports.protect = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ message: "No token, authorization denied" });
 
     try {
-        // 3. Verify if the token is real
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // 4. Attach the user info to the request so the routes can use it
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
         req.user = decoded;
-        next(); // Move to the next step
+        next();
     } catch (err) {
-        res.status(401).json({ success: false, message: "Token is not valid" });
+        res.status(401).json({ message: "Token is not valid" });
     }
 };
