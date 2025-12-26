@@ -1,20 +1,20 @@
 const { Pool } = require('pg');
+const dotenv = require('dotenv');
+dotenv.config();
 
-// These settings must match your docker-compose.yml environment variables
+// Use the Internal Database URL from Render for the best performance
 const pool = new Pool({
-  user: 'user',
-  host: 'database', // This tells Node to look for the Docker container named 'database'
-  database: 'saas_db',
-  password: 'password',
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false // Required for Render/Cloud connections
+  }
 });
 
-// Test the connection immediately
 pool.query('SELECT NOW()', (err, res) => {
   if (err) {
-    console.error('Database connection error:', err.stack);
+    console.error('❌ Database connection error:', err.stack);
   } else {
-    console.log('Database connected successfully at:', res.rows[0].now);
+    console.log('✅ Cloud Database connected at:', res.rows[0].now);
   }
 });
 

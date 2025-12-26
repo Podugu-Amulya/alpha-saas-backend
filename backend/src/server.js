@@ -8,7 +8,7 @@ const path = require('path');
 dotenv.config();
 
 // 3. Import Routes
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 
 const app = express();
