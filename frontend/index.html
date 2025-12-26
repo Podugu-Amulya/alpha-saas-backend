@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amulya SaaS | Login</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; margin: 0;
+        }
+        .login-card { 
+            background: white; padding: 40px; border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 350px; text-align: center;
+        }
+        h2 { color: #333; margin-bottom: 25px; }
+        input { 
+            width: 100%; padding: 12px; margin-bottom: 15px; 
+            border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; padding: 12px; background: #667eea; color: white; 
+            border: none; border-radius: 6px; font-weight: bold; cursor: pointer; 
+        }
+        #message { color: #e74c3c; margin-top: 15px; font-size: 14px; }
+        .register-link { margin-top: 15px; font-size: 13px; color: #666; }
+        .register-link a { color: #667eea; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>Welcome Back</h2>
+        <input type="text" id="subdomain" placeholder="Subdomain (amulya)">
+        <input type="email" id="email" placeholder="Email Address">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="handleLogin()">Sign In</button>
+        <p id="message"></p>
+        
+        <div class="register-link">
+            Don't have an account? <a href="#" onclick="alert('Go to your register page to create your cloud admin user!')">Register</a>
+        </div>
+    </div>
+
+    <script>
+        // Your live backend link
+        const API_BASE_URL = 'https://alpha-saas-backend.onrender.com';
+
+        async function handleLogin() {
+            const subdomain = document.getElementById('subdomain').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const messageEl = document.getElementById('message');
+
+            messageEl.innerText = "Connecting to cloud...";
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subdomain, email, password })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('token', data.token); 
+                    alert('Login Successful!');
+                    window.location.href = 'dashboard.html'; 
+                } else {
+                    messageEl.innerText = data.message || "Login failed. Check your details.";
+                }
+            } catch (err) {
+                console.error("Fetch error:", err);
+                messageEl.innerText = "Could not reach the cloud server. Please wait 1 minute for it to wake up.";
+            }
+        }
+    </script>
+</body>
+</html>
