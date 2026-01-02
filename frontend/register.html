@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Alpha SaaS | Register</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #7c73e6; }
+        .card { background: white; padding: 30px; border-radius: 12px; width: 350px; text-align: center; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; }
+        button { width: 100%; padding: 12px; background: #7c73e6; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Create Account</h2>
+        <input type="text" id="reg-name" placeholder="Full Name">
+        <input type="text" id="reg-subdomain" placeholder="Subdomain (e.g. amulya)">
+        <input type="email" id="reg-email" placeholder="Email Address">
+        <input type="password" id="reg-password" placeholder="Password">
+        <button onclick="handleRegister()">Register</button>
+        <p><a href="index.html">Back to Login</a></p>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://alpha-saas-backend.onrender.com';
+
+        async function handleRegister() {
+            const userData = {
+                name: document.getElementById('reg-name').value,
+                subdomain: document.getElementById('reg-subdomain').value,
+                email: document.getElementById('reg-email').value,
+                password: document.getElementById('reg-password').value
+            };
+
+            const res = await fetch(`${API_BASE_URL}/api/auth/register-tenant`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert("Registration successful! Please login.");
+                window.location.href = 'index.html';
+            } else {
+                alert("Error: " + data.message);
+            }
+        }
+    </script>
+</body>
+</html>

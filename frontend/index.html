@@ -39,7 +39,7 @@
         <p id="message"></p>
         
         <div class="register-link">
-            Don't have an account? <a href="#" onclick="alert('Go to your register page to create your cloud admin user!')">Register</a>
+            Don't have an account? <a href="register.html">Register</a>
         </div>
     </div>
 
@@ -53,6 +53,12 @@
             const password = document.getElementById('password').value;
             const messageEl = document.getElementById('message');
 
+            if (!subdomain || !email || !password) {
+                messageEl.innerText = "Please fill in all fields.";
+                return;
+            }
+
+            messageEl.style.color = "#666";
             messageEl.innerText = "Connecting to cloud...";
 
             try {
@@ -66,13 +72,14 @@
                 
                 if (data.success) {
                     localStorage.setItem('token', data.token); 
-                    alert('Login Successful!');
                     window.location.href = 'dashboard.html'; 
                 } else {
+                    messageEl.style.color = "#e74c3c";
                     messageEl.innerText = data.message || "Login failed. Check your details.";
                 }
             } catch (err) {
                 console.error("Fetch error:", err);
+                messageEl.style.color = "#e74c3c";
                 messageEl.innerText = "Could not reach the cloud server. Please wait 1 minute for it to wake up.";
             }
         }

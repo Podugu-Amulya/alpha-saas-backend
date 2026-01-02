@@ -1,19 +1,16 @@
 const jwt = require('jsonwebtoken');
 
-exports.protect = (req, res, next) => {
-    // Look for the token in the "Authorization" header
-    const token = req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ success: false, message: "Not authorized, no token" });
+module.exports = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ success: false, message: 'No token provided' });
     }
-
+    const token = authHeader.split(' ')[1];
     try {
-        // Verify token using your secret key
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-        req.user = decoded; // Adds the user ID to the request
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+        req.user = decoded;
         next();
     } catch (err) {
-        res.status(401).json({ success: false, message: "Token is not valid" });
+        res.status(401).json({ success: false, message: 'Invalid token' });
     }
 };

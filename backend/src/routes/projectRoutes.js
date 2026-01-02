@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const projectController = require('../controllers/projectController');
-const { protect } = require('../middleware/authMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// If projectController.createProject is missing, the server crashes here
-router.post('/', protect, projectController.createProject);
-router.get('/', protect, projectController.getProjects);
+// Fixed: Correctly passing functions to routes
+router.post('/', authMiddleware, projectController.createProject);
+router.get('/', authMiddleware, projectController.getProjects);
 
 module.exports = router;

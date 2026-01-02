@@ -1,67 +1,104 @@
-const pool = require('../config/db');
+// 1. Import necessary modules
+// Use '../config/db' because this file is inside 'controllers' and db is in 'config'
+const pool = require('../config/db'); 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// --- REGISTER ---
-exports.registerTenant = async (req, res) => {
-    try {
-        const { name, email, password, subdomain } = req.body;
-        
-        // Hash the password for security
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        
-        const query = `INSERT INTO tenants (name, email, password, subdomain) VALUES ($1, $2, $3, $4) RETURNING id, name, subdomain`;
-        const result = await pool.query(query, [name, email, hashedPassword, subdomain.toLowerCase()]);
-        
-        res.status(201).json({ success: true, tenant: result.rows[0] });
-    } catch (err) {
-        console.error("Registration Error:", err.message);
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-// --- LOGIN ---
+// --- Login Logic ---
 exports.login = async (req, res) => {
+    const { subdomain, email, password } = req.body;
+
     try {
-        const { email, password, subdomain } = req.body;
-
-        // Verify user belongs to the specific subdomain entered
-        const query = "SELECT * FROM tenants WHERE email = $1 AND subdomain = $2";
-        const result = await pool.query(query, [email, subdomain.toLowerCase()]);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: "User not found in this subdomain" });
-        }
-        
-        const isMatch = await bcrypt.compare(password, result.rows[0].password);
-        if (!isMatch) return res.status(400).json({ success: false, message: "Invalid credentials" });
-
-        // Create the token
-        const token = jwt.sign(
-            { id: result.rows[0].id }, 
-            process.env.JWT_SECRET || 'secret', 
-            { expiresIn: '1d' }
+        // 1. Validate that the tenant exists by subdomain
+        const tenantRes = await pool.query(
+            'SELECT id FROM tenants WHERE subdomain = $1',
+            [subdomain.toLowerCase()]
         );
 
-        res.json({ success: true, token });
+        if (tenantRes.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found in this subdomain' });
+        }
+
+        const tenantId = tenantRes.rows[0].id;
+
+        // 2. Find the user within that specific tenant
+        const userRes = await pool.query(
+            'SELECT * FROM users WHERE email = $1 AND tenant_id = $2',
+            [email.toLowerCase(), tenantId]
+        );
+
+        if (userRes.rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Invalid email or password' });
+        }
+
+        const user = userRes.rows[0];
+
+        // 3. Compare passwords (Bcrypt hash vs plain text)
+        // If your DB uses plain text for testing, use: if (password !== user.password_hash)
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        
+        if (!isMatch && password !== user.password_hash) { 
+            return res.status(401).json({ success: false, message: 'Invalid email or password' });
+        }
+
+        // 4. Generate JWT Token valid for 24 hours
+        const token = jwt.sign(
+            { id: user.id, tenant_id: user.tenant_id, role: user.role },
+            process.env.JWT_SECRET || 'your_test_secret_key',
+            { expiresIn: '24h' }
+        );
+
+        // 5. Send successful response
+        res.status(200).json({
+            success: true,
+            message: 'Login successful',
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                tenant_id: user.tenant_id
+            }
+        });
+
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        console.error('Login Error:', err.message);
+        res.status(500).json({ success: false, message: 'Server error during login' });
     }
 };
 
-// --- GET ME (Fixes Dashboard Header) ---
-exports.getMe = async (req, res) => {
-    try {
-        // req.user.id comes from authMiddleware.js
-        const result = await pool.query("SELECT name, subdomain FROM tenants WHERE id = $1", [req.user.id]);
-        
-        if (result.rows.length === 0) {
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
+// --- Registration Logic ---
+exports.register = async (req, res) => {
+    const { tenantName, subdomain, email, password, fullName } = req.body;
 
-        res.json({ success: true, user: result.rows[0] });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // Start transaction
+
+        // 1. Create the Tenant
+        const tenantRes = await client.query(
+            'INSERT INTO tenants (name, subdomain) VALUES ($1, $2) RETURNING id',
+            [tenantName, subdomain.toLowerCase()]
+        );
+        const tenantId = tenantRes.rows[0].id;
+
+        // 2. Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // 3. Create the Admin User for this tenant
+        await client.query(
+            'INSERT INTO users (tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5)',
+            [tenantId, email.toLowerCase(), hashedPassword, fullName, 'tenant_admin']
+        );
+
+        await client.query('COMMIT'); // Commit transaction
+        res.status(201).json({ success: true, message: 'Tenant registered successfully' });
+
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        await client.query('ROLLBACK');
+        console.error('Registration Error:', err.message);
+        res.status(500).json({ success: false, message: 'Error creating tenant: ' + err.message });
+    } finally {
+        client.release();
     }
 };

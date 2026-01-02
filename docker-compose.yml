@@ -1,7 +1,9 @@
+version: '3.8'
+
 services:
   database:
     image: postgres:15
-    container_name: database
+    container_name: alpha_db
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -9,15 +11,30 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./backend/migrations:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   backend:
     build: ./backend
-    container_name: backend
+    container_name: alpha_backend
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgresql://user:password@database:5432/saas_db
-      JWT_SECRET: test_secret_123
+      - DATABASE_URL=postgresql://amulya_saas_db_user:9BQdfyTzjcc7NfjiBgB7oDEYguHB3bc0@dpg-d57824je5dus73d6gua0-a.singapore-postgres.render.com/amulya_saas_db
+      - JWT_SECRET=super_secret_key_123
+      - CORS_ORIGIN=http://localhost:3000
+      - NODE_ENV=development
     depends_on:
       - database
+  frontend:
+    image: nginx:alpine
+    container_name: alpha_frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
