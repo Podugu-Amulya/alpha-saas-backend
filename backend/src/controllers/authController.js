@@ -69,35 +69,33 @@ exports.login = async (req, res) => {
 
 // --- Registration Logic ---
 exports.register = async (req, res) => {
+    // 1. Get the email from the request body
     const { tenantName, subdomain, email, password, fullName } = req.body;
-
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); // Start transaction
+        await client.query('BEGIN');
 
-        // 1. Create the Tenant
+        // 2. FIXED: Added 'email' to satisfy the NOT NULL constraint in the 'tenants' table
         const tenantRes = await client.query(
-            'INSERT INTO tenants (name, subdomain) VALUES ($1, $2) RETURNING id',
-            [tenantName, subdomain.toLowerCase()]
+            'INSERT INTO tenants (name, subdomain, email) VALUES ($1, $2, $3) RETURNING id',
+            [tenantName, subdomain.toLowerCase(), email.toLowerCase()]
         );
         const tenantId = tenantRes.rows[0].id;
 
-        // 2. Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 3. Create the Admin User for this tenant
+        // 3. Create the Admin User associated with this tenant
         await client.query(
             'INSERT INTO users (tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5)',
             [tenantId, email.toLowerCase(), hashedPassword, fullName, 'tenant_admin']
         );
 
-        await client.query('COMMIT'); // Commit transaction
+        await client.query('COMMIT');
         res.status(201).json({ success: true, message: 'Tenant registered successfully' });
-
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error('Registration Error:', err.message);
-        res.status(500).json({ success: false, message: 'Error creating tenant: ' + err.message });
+        console.error('DATABASE ERROR:', err.message); 
+        res.status(500).json({ success: false, message: 'Database Error: ' + err.message });
     } finally {
         client.release();
     }

@@ -1,11 +1,18 @@
-System Architecture The project is split into two main parts: a Frontend (the website) and a Backend (the logic and database).
+# System Architecture
 
-How it Works
+## Overview
+The platform uses a **Shared Database, Logical Isolation** model. Every table contains a `tenant_id` to ensure users only see data belonging to their organization.
 
-The Frontend (HTML/JS) sends requests to the Backend using the Fetch API.
 
-The Backend (Node.js) verifies the user's JWT token to see who they are.
 
-The Backend then asks the Database (PostgreSQL) for data that belongs ONLY to that user's tenant_id.
+## Technology Stack
+- **Frontend**: HTML5, CSS3, JavaScript (Containerized via Nginx).
+- **Backend**: Node.js, Express.js (REST API).
+- **Database**: PostgreSQL (Relational storage).
+- **DevOps**: Docker & Docker Compose.
 
-Everything is wrapped in Docker containers so it can be installed with one command: docker-compose up.
+## Database ERD
+- **Tenants Table**: `id, name, subdomain, email, created_at`
+- **Users Table**: `id, tenant_id, full_name, email, password_hash, role`
+- **Projects Table**: `id, tenant_id, name, description`
+- **Tasks Table**: `id, project_id, tenant_id, title, status`

@@ -1,0 +1,24 @@
+{
+  "testCredentials": {
+    "superAdmin": {
+      "email": "superadmin@alpha.com",
+      "password": "AdminPassword123"
+    },
+    "tenantAdmin": {
+      "subdomain": "demo",
+      "email": "admin@demo.com",
+      "password": "Demo@123"
+    },
+    "regularUser": {
+      "subdomain": "demo",
+      "email": "user@demo.com",
+      "password": "User@123"
+    }
+  },
+  "healthCheckEndpoint": "http://localhost:5000/api/health",
+  "ports": {
+    "frontend": 3000,
+    "backend": 5000,
+    "database": 5432
+  }
+}

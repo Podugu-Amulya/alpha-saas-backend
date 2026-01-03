@@ -157,3 +157,150 @@
     </script>
 </body>
 </html>
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha SaaS | Dashboard</title>
+    <style>
+        :root { --primary: #667eea; --secondary: #764ba2; --bg: #f8fafc; --sidebar-color: #7c73e6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; display: flex; min-height: 100vh; }
+        .sidebar { width: 260px; background-color: var(--sidebar-color); color: white; padding: 30px 20px; display: flex; flex-direction: column; }
+        .tenant-display { font-size: 13px; opacity: 0.8; margin-bottom: 30px; }
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .create-card { background: white; padding: 30px; border-radius: 15px; margin-bottom: 40px; }
+        .input-row { display: flex; gap: 15px; margin-top: 15px; }
+        .create-card input { flex: 1; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .launch-btn { background: var(--sidebar-color); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; }
+        .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .project-card { background: white; padding: 20px; border-radius: 15px; border-left: 6px solid var(--sidebar-color); }
+        .logout-btn { margin-top: auto; background: none; border: 1px solid white; color: white; padding: 12px; border-radius: 8px; cursor: pointer; }
+        .error-msg { color: #e53e3e; font-size: 14px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h1>Alpha SaaS</h1>
+    <div class="tenant-display">Tenant Dashboard</div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<div class="main-content">
+    <h2>Welcome!</h2>
+    <p>Your multi-tenant workspace is active.</p>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Projects</h3>
+            <p id="total-projects" style="font-size:24px;font-weight:bold;">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Plan Limit</h3>
+            <p style="color:#7c73e6;font-weight:bold;">Free (Max 3)</p>
+        </div>
+    </div>
+
+    <div class="create-card">
+        <h3>+ Create New Project</h3>
+        <div class="input-row">
+            <input id="new-p-name" placeholder="Project Name">
+            <input id="new-p-desc" placeholder="Description">
+            <button class="launch-btn" onclick="createNewProject()">Launch</button>
+        </div>
+        <p id="limit-error" class="error-msg"></p>
+    </div>
+
+    <h3>Active Projects</h3>
+    <div id="project-list" class="project-grid"></div>
+</div>
+
+<script>
+const API_BASE_URL = "http://localhost:5000";
+const token = localStorage.getItem("token");
+
+if (!token) {
+    window.location.href = "index.html";
+}
+
+// LOAD PROJECTS
+async function refreshProjects() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/projects`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        if (!res.ok) throw new Error("Unauthorized");
+
+        const data = await res.json();
+        const projects = data.data?.projects || [];
+
+        document.getElementById("total-projects").innerText = projects.length;
+
+        const container = document.getElementById("project-list");
+        container.innerHTML = "";
+
+        projects.forEach(p => {
+            container.innerHTML += `
+                <div class="project-card">
+                    <h4>${p.name}</h4>
+                    <p>${p.description || "No description"}</p>
+                </div>
+            `;
+        });
+    } catch (err) {
+        console.error(err);
+        logout();
+    }
+}
+
+// CREATE PROJECT
+async function createNewProject() {
+    const name = document.getElementById("new-p-name").value;
+    const description = document.getElementById("new-p-desc").value;
+    const errorEl = document.getElementById("limit-error");
+
+    if (!name) return alert("Enter project name");
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/projects`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ name, description })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorEl.style.display = "block";
+            errorEl.innerText = data.message || "Failed";
+        } else {
+            errorEl.style.display = "none";
+            document.getElementById("new-p-name").value = "";
+            document.getElementById("new-p-desc").value = "";
+            refreshProjects();
+        }
+    } catch (err) {
+        alert("Backend not reachable");
+    }
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    window.location.href = "index.html";
+}
+
+refreshProjects();
+</script>
+
+</body>
+</html> -->

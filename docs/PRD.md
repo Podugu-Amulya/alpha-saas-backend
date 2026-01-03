@@ -1,1 +1,18 @@
-Functional Requirements FR-001: Users can register a new organization with a unique subdomain. FR-002: Users can log in using their email and subdomain. FR-003: The system must keep data completely separate between tenants. FR-004: Admins can add new team members to their organization. FR-005: The "Free Plan" limits users to 3 projects and 5 team members. FR-006: Users can create new projects. FR-007: Users can add tasks to projects. FR-008: Tasks can be marked as "To Do", "In Progress", or "Completed". FR-009: The system tracks all important actions in an audit log. FR-010: Super Admins can see a list of all registered companies. FR-011: The dashboard shows total project and task counts. FR-012: The UI works on both mobile and desktop screens. FR-013: Users can assign tasks to specific team members. FR-014: Projects can be archived or deleted. FR-015: A health check page shows if the database is connected.
+# Product Requirements Document (PRD)
+
+## User Personas
+1. **Super Admin**: Manages the entire SaaS infrastructure and monitors tenants.
+2. **Tenant Admin**: Manages their specific company, users, and projects.
+3. **Regular User**: Works on assigned tasks within their tenant.
+
+## Functional Requirements
+- Secure tenant registration with unique subdomains.
+- Automated database schema isolation.
+- Project creation and milestone tracking.
+- Task assignment with status updates (To-Do, In-Progress, Done).
+- Role-Based Access Control (RBAC).
+
+## Non-Functional Requirements
+- **Scalability**: Capable of handling 100+ concurrent tenants.
+- **Security**: 256-bit JWT encryption.
+- **Performance**: API response time < 200ms.

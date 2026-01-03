@@ -1,11 +1,10 @@
-Multi-Tenancy Analysis For this project, I chose the Shared Database and Shared Schema approach. This means all companies (tenants) stay in one database, but every row of data has a tenant_id to keep it private. This is the best choice because it is cheaper to host and much faster to set up than creating a new database for every single user.
+# Multi-Tenancy Research & Analysis
 
-Technology Stack
+## Technology Selection Justification
+We selected **PostgreSQL** over NoSQL because multi-tenant SaaS platforms rely heavily on relational integrity. Ensuring that a Task belongs to a Project, which in turn belongs to a specific Tenant, is best handled via Foreign Key constraints.
 
-Backend: Node.js and Express were used to build a fast API.
+## Isolation Strategies
+During research, we compared **Schema Isolation** vs **Row-Level Isolation**. While Schema isolation provides better security, it makes automated migrations significantly harder. We chose Row-Level Isolation (Shared Schema) because it allows us to run a single migration script across the entire platform via Docker, meeting the "Automatic Migration" requirement of this task.
 
-Database: PostgreSQL was chosen because it handles complex data relationships very well.
-
-Authentication: JWT (JSON Web Tokens) allow users to stay logged in securely for 24 hours.
-
-Security Measures We use bcrypt to hash passwords so they are never stored in plain text. We also use a "Middleware" that checks the tenant_id on every request to make sure one company cannot see another company's projects.
+## Security and JWT
+Stateless authentication is critical. By embedding the `tenant_id` inside the JWT payload, we prevent "ID Spoofing" where a user might try to access another tenant's data by changing a URL parameter.

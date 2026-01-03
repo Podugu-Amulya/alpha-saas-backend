@@ -3,9 +3,12 @@ require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Changed this to false because your server rejected the SSL handshake
-  ssl: false, 
-  connectionTimeoutMillis: 5000, 
+  // FIXED: Render PostgreSQL requires SSL/TLS. 
+  // We set rejectUnauthorized to false to allow the connection from local Docker.
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 10000, 
 });
 
 // --- AUTO-SEED LOGIC ---
@@ -35,6 +38,7 @@ const seedDatabase = async () => {
       const tenantRes = await pool.query("INSERT INTO tenants (name, subdomain) VALUES ('Demo Co', 'demo') RETURNING id");
       const tenantId = tenantRes.rows[0].id;
       
+      // Note: Use 'Demo@123' as the password in your login screen later
       await pool.query(`
         INSERT INTO users (tenant_id, email, password_hash, role) 
         VALUES ($1, 'admin@demo.com', 'Demo@123', 'tenant_admin')
@@ -54,7 +58,7 @@ pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('❌ DATABASE CONNECTION ERROR:', err.message);
   } else {
-    console.log('✅ Connected to Render Database!');
+    console.log('✅ Connected to Render Database (Singapore)!');
     seedDatabase(); 
   }
 });

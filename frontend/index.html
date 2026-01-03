@@ -32,7 +32,7 @@
 <body>
     <div class="login-card">
         <h2>Welcome Back</h2>
-        <input type="text" id="subdomain" placeholder="Subdomain (amulya)">
+        <input type="text" id="subdomain" placeholder="Subdomain (e.g., demo)">
         <input type="email" id="email" placeholder="Email Address">
         <input type="password" id="password" placeholder="Password">
         <button onclick="handleLogin()">Sign In</button>
@@ -44,8 +44,11 @@
     </div>
 
     <script>
-        // Your live backend link
-        const API_BASE_URL = 'https://alpha-saas-backend.onrender.com';
+        /**
+         * UPDATED: Points to your local Docker container on port 5000.
+         * Your backend logs confirmed this is the healthy endpoint.
+         */
+        const API_BASE_URL = 'http://localhost:5000';
 
         async function handleLogin() {
             const subdomain = document.getElementById('subdomain').value;
@@ -59,7 +62,7 @@
             }
 
             messageEl.style.color = "#666";
-            messageEl.innerText = "Connecting to cloud...";
+            messageEl.innerText = "Connecting to local server...";
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -71,16 +74,18 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Success! Store the token and move to the dashboard
                     localStorage.setItem('token', data.token); 
                     window.location.href = 'dashboard.html'; 
                 } else {
+                    // Display error from the backend (e.g., "Invalid credentials")
                     messageEl.style.color = "#e74c3c";
                     messageEl.innerText = data.message || "Login failed. Check your details.";
                 }
             } catch (err) {
                 console.error("Fetch error:", err);
                 messageEl.style.color = "#e74c3c";
-                messageEl.innerText = "Could not reach the cloud server. Please wait 1 minute for it to wake up.";
+                messageEl.innerText = "Server error: Ensure your Docker backend is running on port 5000.";
             }
         }
     </script>
