@@ -1,5 +1,3 @@
-// 1. Import necessary modules
-// Use '../config/db' because this file is inside 'controllers' and db is in 'config'
 const pool = require('../config/db'); 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -9,19 +7,17 @@ exports.login = async (req, res) => {
     const { subdomain, email, password } = req.body;
 
     try {
-        // 1. Validate that the tenant exists by subdomain
         const tenantRes = await pool.query(
             'SELECT id FROM tenants WHERE subdomain = $1',
             [subdomain.toLowerCase()]
         );
 
         if (tenantRes.rows.length === 0) {
-            return res.status(404).json({ success: false, message: 'User not found in this subdomain' });
+            return res.status(404).json({ success: false, message: 'Subdomain not found' });
         }
 
         const tenantId = tenantRes.rows[0].id;
 
-        // 2. Find the user within that specific tenant
         const userRes = await pool.query(
             'SELECT * FROM users WHERE email = $1 AND tenant_id = $2',
             [email.toLowerCase(), tenantId]
@@ -32,33 +28,22 @@ exports.login = async (req, res) => {
         }
 
         const user = userRes.rows[0];
-
-        // 3. Compare passwords (Bcrypt hash vs plain text)
-        // If your DB uses plain text for testing, use: if (password !== user.password_hash)
         const isMatch = await bcrypt.compare(password, user.password_hash);
         
-        if (!isMatch && password !== user.password_hash) { 
+        if (!isMatch) { 
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
-        // 4. Generate JWT Token valid for 24 hours
         const token = jwt.sign(
             { id: user.id, tenant_id: user.tenant_id, role: user.role },
             process.env.JWT_SECRET || 'your_test_secret_key',
             { expiresIn: '24h' }
         );
 
-        // 5. Send successful response
         res.status(200).json({
             success: true,
-            message: 'Login successful',
             token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                tenant_id: user.tenant_id
-            }
+            user: { id: user.id, email: user.email, role: user.role, tenant_id: user.tenant_id }
         });
 
     } catch (err) {
@@ -69,33 +54,31 @@ exports.login = async (req, res) => {
 
 // --- Registration Logic ---
 exports.register = async (req, res) => {
-    // 1. Get the email from the request body
-    const { tenantName, subdomain, email, password, fullName } = req.body;
+    const { tenantName, subdomain, email, password } = req.body;
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // 2. FIXED: Added 'email' to satisfy the NOT NULL constraint in the 'tenants' table
         const tenantRes = await client.query(
-            'INSERT INTO tenants (name, subdomain, email) VALUES ($1, $2, $3) RETURNING id',
-            [tenantName, subdomain.toLowerCase(), email.toLowerCase()]
+            'INSERT INTO tenants (name, subdomain) VALUES ($1, $2) RETURNING id',
+            [tenantName, subdomain.toLowerCase()]
         );
         const tenantId = tenantRes.rows[0].id;
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 3. Create the Admin User associated with this tenant
+        // FIXED: Removed 'full_name' column to match the database schema
         await client.query(
-            'INSERT INTO users (tenant_id, email, password_hash, full_name, role) VALUES ($1, $2, $3, $4, $5)',
-            [tenantId, email.toLowerCase(), hashedPassword, fullName, 'tenant_admin']
+            'INSERT INTO users (tenant_id, email, password_hash, role) VALUES ($1, $2, $3, $4)',
+            [tenantId, email.toLowerCase(), hashedPassword, 'tenant_admin']
         );
 
         await client.query('COMMIT');
-        res.status(201).json({ success: true, message: 'Tenant registered successfully' });
+        res.status(201).json({ success: true, message: 'Registered successfully' });
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error('DATABASE ERROR:', err.message); 
-        res.status(500).json({ success: false, message: 'Database Error: ' + err.message });
+        console.error('REGISTRATION ERROR:', err.message); 
+        res.status(500).json({ success: false, message: 'Registration failed: ' + err.message });
     } finally {
         client.release();
     }

@@ -1,66 +1,74 @@
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // FIXED: Render PostgreSQL requires SSL/TLS. 
-  // We set rejectUnauthorized to false to allow the connection from local Docker.
-  ssl: {
-    rejectUnauthorized: false
-  },
-  connectionTimeoutMillis: 10000, 
+  ssl: { rejectUnauthorized: false } 
 });
 
-// --- AUTO-SEED LOGIC ---
-const seedDatabase = async () => {
+const init = async () => {
+  let client;
   try {
-    // 1. Create Tables
-    await pool.query(`
+    client = await pool.connect();
+    console.log("✅ CONNECTION SUCCESSFUL TO RENDER");
+    
+    // 1. Create Tenants Table
+    await client.query(`
       CREATE TABLE IF NOT EXISTS tenants (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        subdomain VARCHAR(255) UNIQUE NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        tenant_id INTEGER REFERENCES tenants(id),
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'tenant_admin'
+        id SERIAL PRIMARY KEY, 
+        name TEXT, 
+        subdomain TEXT UNIQUE
       );
     `);
 
-    // 2. Check if demo tenant exists
-    const tenantCheck = await pool.query("SELECT id FROM tenants WHERE subdomain = 'demo'");
+    // 2. Create Users Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY, 
+        tenant_id INT REFERENCES tenants(id), 
+        email TEXT UNIQUE, 
+        password_hash TEXT, 
+        role TEXT
+      );
+    `);
+
+    // 3. Create Projects Table (This fixes your "created_by" error)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        tenant_id INT REFERENCES tenants(id),
+        name TEXT,
+        description TEXT,
+        created_by INT REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 4. Seed Tenant and Admin User
+    const hash = await bcrypt.hash('Demo@123', 10);
+    const tenantRes = await client.query(`
+      INSERT INTO tenants (name, subdomain) 
+      VALUES ('Demo', 'demo') 
+      ON CONFLICT (subdomain) DO UPDATE SET name = 'Demo' 
+      RETURNING id
+    `);
     
-    if (tenantCheck.rows.length === 0) {
-      // 3. Insert Demo Data
-      const tenantRes = await pool.query("INSERT INTO tenants (name, subdomain) VALUES ('Demo Co', 'demo') RETURNING id");
-      const tenantId = tenantRes.rows[0].id;
-      
-      // Note: Use 'Demo@123' as the password in your login screen later
-      await pool.query(`
-        INSERT INTO users (tenant_id, email, password_hash, role) 
-        VALUES ($1, 'admin@demo.com', 'Demo@123', 'tenant_admin')
-      `, [tenantId]);
-      
-      console.log('✅ DATABASE SEEDED: User admin@demo.com created!');
-    } else {
-      console.log('ℹ️  Database already seeded.');
-    }
+    const tenantId = tenantRes.rows[0].id;
+
+    await client.query(`
+      INSERT INTO users (tenant_id, email, password_hash, role) 
+      VALUES ($1, 'admin@demo.com', $2, 'tenant_admin') 
+      ON CONFLICT (email) DO UPDATE SET password_hash = $2
+    `, [tenantId, hash]);
+
+    console.log("✅ ALL TABLES READY AND SEEDED SUCCESSFULLY");
   } catch (err) {
-    console.error('❌ Seeding failed:', err.message);
+    console.error("❌ DATABASE INIT ERROR:", err.message);
+  } finally {
+    if (client) client.release();
   }
 };
 
-// Initial Connection Test
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ DATABASE CONNECTION ERROR:', err.message);
-  } else {
-    console.log('✅ Connected to Render Database (Singapore)!');
-    seedDatabase(); 
-  }
-});
-
+init();
 module.exports = pool;

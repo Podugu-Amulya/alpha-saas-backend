@@ -1,27 +1,13 @@
-version: '3.8'
 services:
-  database:
-    image: postgres:15
-    container_name: alpha_db
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: saas_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: your_password
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   backend:
     build: ./backend
     container_name: alpha_backend
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgres://postgres:your_password@database:5432/saas_db
-      JWT_SECRET: your_test_secret_key
-    depends_on:
-      - database
+      - DATABASE_URL=postgresql://amulya_saas_db_user:9BQdfyTzjcc7NfjiBgB7oDEYguHB3bc0@dpg-d57824je5dus73d6gua0-a.singapore-postgres.render.com/amulya_saas_db?ssl=true
+      - JWT_SECRET=any_random_string_here
+      - NODE_ENV=development
 
   frontend:
     build: ./frontend
@@ -30,6 +16,3 @@ services:
       - "3000:3000"
     depends_on:
       - backend
-
-volumes:
-  pgdata:
