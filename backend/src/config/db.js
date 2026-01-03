@@ -13,56 +13,24 @@ const init = async () => {
     client = await pool.connect();
     console.log("✅ CONNECTION SUCCESSFUL TO RENDER");
     
-    // 1. Create Tenants Table
+    // 1. Core Tables
     await client.query(`
-      CREATE TABLE IF NOT EXISTS tenants (
-        id SERIAL PRIMARY KEY, 
-        name TEXT, 
-        subdomain TEXT UNIQUE
-      );
+      CREATE TABLE IF NOT EXISTS tenants (id SERIAL PRIMARY KEY, name TEXT, subdomain TEXT UNIQUE);
+      CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, tenant_id INT REFERENCES tenants(id), email TEXT UNIQUE, password_hash TEXT, role TEXT);
+      CREATE TABLE IF NOT EXISTS projects (id SERIAL PRIMARY KEY, tenant_id INT REFERENCES tenants(id), name TEXT, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     `);
 
-    // 2. Create Users Table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY, 
-        tenant_id INT REFERENCES tenants(id), 
-        email TEXT UNIQUE, 
-        password_hash TEXT, 
-        role TEXT
-      );
-    `);
+    // 2. THE STABLE FIX: Add the column if it's missing (No dropping needed)
+    await client.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_by INT REFERENCES users(id);`);
 
-    // 3. Create Projects Table (This fixes your "created_by" error)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id SERIAL PRIMARY KEY,
-        tenant_id INT REFERENCES tenants(id),
-        name TEXT,
-        description TEXT,
-        created_by INT REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 4. Seed Tenant and Admin User
+    // 3. Seed Data
     const hash = await bcrypt.hash('Demo@123', 10);
-    const tenantRes = await client.query(`
-      INSERT INTO tenants (name, subdomain) 
-      VALUES ('Demo', 'demo') 
-      ON CONFLICT (subdomain) DO UPDATE SET name = 'Demo' 
-      RETURNING id
-    `);
-    
+    const tenantRes = await client.query("INSERT INTO tenants (name, subdomain) VALUES ('Demo', 'demo') ON CONFLICT (subdomain) DO UPDATE SET name = 'Demo' RETURNING id");
     const tenantId = tenantRes.rows[0].id;
 
-    await client.query(`
-      INSERT INTO users (tenant_id, email, password_hash, role) 
-      VALUES ($1, 'admin@demo.com', $2, 'tenant_admin') 
-      ON CONFLICT (email) DO UPDATE SET password_hash = $2
-    `, [tenantId, hash]);
+    await client.query("INSERT INTO users (tenant_id, email, password_hash, role) VALUES ($1, 'admin@demo.com', $2, 'tenant_admin') ON CONFLICT (email) DO UPDATE SET password_hash = $2", [tenantId, hash]);
 
-    console.log("✅ ALL TABLES READY AND SEEDED SUCCESSFULLY");
+    console.log("✅ DATABASE UPDATED SUCCESSFULLY");
   } catch (err) {
     console.error("❌ DATABASE INIT ERROR:", err.message);
   } finally {
